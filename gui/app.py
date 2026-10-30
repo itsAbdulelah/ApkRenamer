@@ -1,5 +1,6 @@
 import os
 import sys
+import ctypes
 import random
 import string
 import tkinter as tk
@@ -14,6 +15,44 @@ try:
     from .runner import ApkRenamerRunner, check_java, get_core_dir
 except ImportError:
     from runner import ApkRenamerRunner, check_java, get_core_dir
+
+
+def load_bundled_fonts():
+    """Register bundled fonts (e.g. Tajawal) into Windows GDI dynamically at runtime."""
+    if sys.platform != "win32":
+        return
+    candidates = []
+    if getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(sys.executable)
+        candidates.append(os.path.join(exe_dir, "assets", "fonts"))
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(os.path.join(meipass, "assets", "fonts"))
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates.append(os.path.join(script_dir, "..", "assets", "fonts"))
+    candidates.append(os.path.join(script_dir, "assets", "fonts"))
+
+    FR_PRIVATE = 0x10
+    for c in candidates:
+        if os.path.isdir(c):
+            for f in os.listdir(c):
+                if f.lower().endswith((".ttf", ".otf")):
+                    font_path = os.path.abspath(os.path.join(c, f))
+                    try:
+                        ctypes.windll.gdi32.AddFontResourceExW(font_path, FR_PRIVATE, 0)
+                    except Exception:
+                        pass
+            break
+
+
+# Load bundled fonts immediately on import
+load_bundled_fonts()
+APP_FONT = "Tajawal"
+
+
+def get_font(size: int = 12, weight: str = "normal") -> ctk.CTkFont:
+    """Helper to return Tajawal font consistently across the UI."""
+    return ctk.CTkFont(family=APP_FONT, size=size, weight=weight)
 
 
 def bidi_text(text: str) -> str:
@@ -249,14 +288,14 @@ class ApkRenamerApp(ctk.CTk):
         title_lbl = ctk.CTkLabel(
             title_frame,
             text=self.t("app_title"),
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=get_font(20, "bold"),
             text_color=("#0f172a", "#f8fafc"),
             anchor=label_anchor
         )
         sub_lbl = ctk.CTkLabel(
             title_frame,
             text=self.t("app_subtitle"),
-            font=ctk.CTkFont(size=11),
+            font=get_font(11),
             text_color=("#64748b", "#94a3b8"),
             anchor=label_anchor,
             justify=label_justify
@@ -268,7 +307,7 @@ class ApkRenamerApp(ctk.CTk):
         self.java_badge = ctk.CTkLabel(
             controls_frame,
             text="Checking Java...",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=get_font(12, "bold"),
             text_color="#888888"
         )
         self.java_badge.pack(side="left" if not rtl else "right", padx=10)
@@ -279,6 +318,7 @@ class ApkRenamerApp(ctk.CTk):
             width=85,
             height=30,
             corner_radius=10,
+            font=get_font(12, "bold"),
             fg_color=("#e2e8f0", "#1e263d"),
             hover_color=("#cbd5e1", "#2b3656"),
             text_color=("#1e293b", "#e2e8f0"),
@@ -297,7 +337,7 @@ class ApkRenamerApp(ctk.CTk):
             fg_color=("#0284c7", "#0369a1"),
             hover_color=("#0369a1", "#0284c7"),
             text_color="#ffffff",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=get_font(12, "bold"),
             command=self._toggle_language
         )
         lang_btn.pack(side="left" if not rtl else "right", padx=6)
@@ -335,7 +375,7 @@ class ApkRenamerApp(ctk.CTk):
         card_title = ctk.CTkLabel(
             upper_card,
             text=self.t("config_card"),
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=get_font(14, "bold"),
             text_color=("#334155", "#94a3b8"),
             anchor=label_anchor
         )
@@ -354,13 +394,14 @@ class ApkRenamerApp(ctk.CTk):
         r = 0
 
         # --- Field 1: Source APK ---
-        lbl_src = ctk.CTkLabel(top_scroll, text=self.t("src_apk"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
+        lbl_src = ctk.CTkLabel(top_scroll, text=self.t("src_apk"), font=get_font(13, "bold"), anchor=label_anchor)
         lbl_src.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
 
         self.apk_entry = ctk.CTkEntry(
             top_scroll,
             textvariable=self.apk_in_var,
             placeholder_text=self.t("src_apk_ph"),
+            font=get_font(12),
             fg_color=self.glass_inner_bg,
             border_color=self.glass_inner_border,
             border_width=1,
@@ -374,6 +415,7 @@ class ApkRenamerApp(ctk.CTk):
             width=95,
             height=32,
             corner_radius=10,
+            font=get_font(12, "bold"),
             fg_color=("#e2e8f0", "#1e263d"),
             hover_color=("#cbd5e1", "#2b3656"),
             text_color=("#0f172a", "#f1f5f9"),
@@ -385,13 +427,14 @@ class ApkRenamerApp(ctk.CTk):
         r += 1
 
         # --- Field 2: Output APK ---
-        lbl_out = ctk.CTkLabel(top_scroll, text=self.t("out_apk"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
+        lbl_out = ctk.CTkLabel(top_scroll, text=self.t("out_apk"), font=get_font(13, "bold"), anchor=label_anchor)
         lbl_out.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
 
         self.out_entry = ctk.CTkEntry(
             top_scroll,
             textvariable=self.apk_out_var,
             placeholder_text=self.t("out_apk_ph"),
+            font=get_font(12),
             fg_color=self.glass_inner_bg,
             border_color=self.glass_inner_border,
             border_width=1,
@@ -405,6 +448,7 @@ class ApkRenamerApp(ctk.CTk):
             width=95,
             height=32,
             corner_radius=10,
+            font=get_font(12, "bold"),
             fg_color=("#e2e8f0", "#1e263d"),
             hover_color=("#cbd5e1", "#2b3656"),
             text_color=("#0f172a", "#f1f5f9"),
@@ -416,13 +460,14 @@ class ApkRenamerApp(ctk.CTk):
         r += 1
 
         # --- Field 3: New App Name ---
-        lbl_name = ctk.CTkLabel(top_scroll, text=self.t("app_name"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
+        lbl_name = ctk.CTkLabel(top_scroll, text=self.t("app_name"), font=get_font(13, "bold"), anchor=label_anchor)
         lbl_name.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
 
         self.name_entry = ctk.CTkEntry(
             top_scroll,
             textvariable=self.app_name_var,
             placeholder_text=self.t("app_name_ph"),
+            font=get_font(12),
             fg_color=self.glass_inner_bg,
             border_color=self.glass_inner_border,
             border_width=1,
@@ -435,13 +480,14 @@ class ApkRenamerApp(ctk.CTk):
         r += 1
 
         # --- Field 4: New Package ID & Random Button ---
-        lbl_pkg = ctk.CTkLabel(top_scroll, text=self.t("pkg_id"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
+        lbl_pkg = ctk.CTkLabel(top_scroll, text=self.t("pkg_id"), font=get_font(13, "bold"), anchor=label_anchor)
         lbl_pkg.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
 
         self.pack_entry = ctk.CTkEntry(
             top_scroll,
             textvariable=self.package_name_var,
             placeholder_text=self.t("pkg_id_ph"),
+            font=get_font(12),
             fg_color=self.glass_inner_bg,
             border_color=self.glass_inner_border,
             border_width=1,
@@ -458,7 +504,7 @@ class ApkRenamerApp(ctk.CTk):
             fg_color=("#4f46e5", "#4338ca"),
             hover_color=("#4338ca", "#3730a3"),
             text_color="#ffffff",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=get_font(12, "bold"),
             command=self._generate_random_package
         )
         self.rand_btn.grid(row=r, column=col_action, padx=8, pady=6, sticky=btn_sticky)
@@ -473,20 +519,21 @@ class ApkRenamerApp(ctk.CTk):
             text=self.t("keep_icon"),
             variable=self.keep_original_icon_var,
             command=self._toggle_icon_mode,
-            font=ctk.CTkFont(weight="bold"),
+            font=get_font(13, "bold"),
             progress_color="#0284c7"
         )
         self.keep_icon_switch.pack(side="right" if rtl else "left", padx=0, pady=2)
         r += 1
 
         # Custom Icon Row
-        lbl_cicon = ctk.CTkLabel(top_scroll, text=self.t("custom_icon"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
+        lbl_cicon = ctk.CTkLabel(top_scroll, text=self.t("custom_icon"), font=get_font(13, "bold"), anchor=label_anchor)
         lbl_cicon.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
 
         self.icon_entry = ctk.CTkEntry(
             top_scroll,
             textvariable=self.icon_path_var,
             placeholder_text=self.t("custom_icon_ph"),
+            font=get_font(12),
             fg_color=self.glass_inner_bg,
             border_color=self.glass_inner_border,
             border_width=1,
@@ -503,6 +550,7 @@ class ApkRenamerApp(ctk.CTk):
             width=95,
             height=32,
             corner_radius=10,
+            font=get_font(12, "bold"),
             fg_color=("#e2e8f0", "#1e263d"),
             hover_color=("#cbd5e1", "#2b3656"),
             text_color=("#0f172a", "#f1f5f9"),
@@ -510,7 +558,7 @@ class ApkRenamerApp(ctk.CTk):
             border_width=1,
             command=self._browse_icon
         )
-        self.preview_label = ctk.CTkLabel(icon_action_box, text=self.t("orig_badge"), width=52, height=32)
+        self.preview_label = ctk.CTkLabel(icon_action_box, text=self.t("orig_badge"), font=get_font(11, "bold"), width=52, height=32)
 
         if rtl:
             self.preview_label.pack(side="left", padx=(0, 6))
@@ -534,7 +582,7 @@ class ApkRenamerApp(ctk.CTk):
             deep_card,
             text=self.t("deep_rename"),
             variable=self.deep_rename_var,
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=get_font(13, "bold"),
             progress_color="#0284c7"
         )
         self.deep_switch.pack(anchor="e" if rtl else "w", padx=16, pady=(10, 4))
@@ -542,7 +590,7 @@ class ApkRenamerApp(ctk.CTk):
         lbl_deep_desc = ctk.CTkLabel(
             deep_card,
             text=self.t("deep_rename_desc"),
-            font=ctk.CTkFont(size=11),
+            font=get_font(11),
             text_color=("#64748b", "#94a3b8"),
             wraplength=700,
             justify=label_justify,
@@ -559,7 +607,7 @@ class ApkRenamerApp(ctk.CTk):
             text_color=("#0284c7", "#38bdf8"),
             hover=False,
             anchor=label_anchor,
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=get_font(12, "bold"),
             command=self._toggle_advanced
         )
         self.adv_toggle_btn.grid(row=r, column=0, columnspan=3, padx=12, pady=(4, 2), sticky="ew")
@@ -575,12 +623,13 @@ class ApkRenamerApp(ctk.CTk):
         self.adv_frame.grid_columnconfigure(1, weight=1)
 
         # Dictionary
-        lbl_dict = ctk.CTkLabel(self.adv_frame, text=self.t("dict_lbl"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
+        lbl_dict = ctk.CTkLabel(self.adv_frame, text=self.t("dict_lbl"), font=get_font(12, "bold"), anchor=label_anchor)
         lbl_dict.grid(row=0, column=col_label, padx=12, pady=6, sticky=label_sticky)
         ctk.CTkEntry(
             self.adv_frame,
             textvariable=self.dict_path_var,
             placeholder_text=self.t("dict_ph"),
+            font=get_font(11),
             fg_color=self.glass_card_bg,
             border_color=self.glass_inner_border,
             border_width=1,
@@ -592,6 +641,7 @@ class ApkRenamerApp(ctk.CTk):
             width=80,
             height=28,
             corner_radius=8,
+            font=get_font(11, "bold"),
             fg_color=("#e2e8f0", "#1e263d"),
             hover_color=("#cbd5e1", "#2b3656"),
             text_color=("#0f172a", "#f1f5f9"),
@@ -601,12 +651,13 @@ class ApkRenamerApp(ctk.CTk):
         ).grid(row=0, column=col_action, padx=8, pady=6, sticky=btn_sticky)
 
         # Decode flags
-        lbl_dec = ctk.CTkLabel(self.adv_frame, text=self.t("decode_lbl"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
+        lbl_dec = ctk.CTkLabel(self.adv_frame, text=self.t("decode_lbl"), font=get_font(12, "bold"), anchor=label_anchor)
         lbl_dec.grid(row=1, column=col_label, padx=12, pady=6, sticky=label_sticky)
         dec_entry = ctk.CTkEntry(
             self.adv_frame,
             textvariable=self.decode_args_var,
             placeholder_text=self.t("decode_ph"),
+            font=get_font(11),
             fg_color=self.glass_card_bg,
             border_color=self.glass_inner_border,
             border_width=1,
@@ -618,12 +669,13 @@ class ApkRenamerApp(ctk.CTk):
             dec_entry.grid(row=1, column=1, columnspan=2, padx=6, pady=6, sticky="ew")
 
         # Build flags
-        lbl_bld = ctk.CTkLabel(self.adv_frame, text=self.t("build_lbl"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
+        lbl_bld = ctk.CTkLabel(self.adv_frame, text=self.t("build_lbl"), font=get_font(12, "bold"), anchor=label_anchor)
         lbl_bld.grid(row=2, column=col_label, padx=12, pady=6, sticky=label_sticky)
         bld_entry = ctk.CTkEntry(
             self.adv_frame,
             textvariable=self.build_args_var,
             placeholder_text=self.t("build_ph"),
+            font=get_font(11),
             fg_color=self.glass_card_bg,
             border_color=self.glass_inner_border,
             border_width=1,
@@ -657,7 +709,7 @@ class ApkRenamerApp(ctk.CTk):
         self.start_btn = ctk.CTkButton(
             action_bar,
             text=self.t("start_btn"),
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=get_font(14, "bold"),
             fg_color="#0284c7",
             hover_color="#0369a1",
             height=40,
@@ -669,7 +721,7 @@ class ApkRenamerApp(ctk.CTk):
         self.cancel_btn = ctk.CTkButton(
             action_bar,
             text=self.t("cancel_btn"),
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=get_font(13, "bold"),
             fg_color="#dc2626",
             hover_color="#b91c1c",
             height=40,
@@ -684,6 +736,7 @@ class ApkRenamerApp(ctk.CTk):
             text=self.t("open_folder"),
             height=40,
             corner_radius=12,
+            font=get_font(12, "bold"),
             fg_color=("#10b981", "#059669"),
             hover_color=("#059669", "#047857"),
             text_color="#ffffff",
@@ -694,7 +747,7 @@ class ApkRenamerApp(ctk.CTk):
         self.status_lbl = ctk.CTkLabel(
             action_bar,
             text=self.t("ready"),
-            font=ctk.CTkFont(weight="bold", size=13),
+            font=get_font(13, "bold"),
             text_color="#38bdf8",
             anchor=label_anchor
         )
@@ -722,7 +775,7 @@ class ApkRenamerApp(ctk.CTk):
         lbl_terminal = ctk.CTkLabel(
             term_bar,
             text=self.t("terminal_title"),
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=get_font(12, "bold"),
             text_color=("#475569", "#94a3b8"),
             anchor=label_anchor
         )
@@ -733,7 +786,7 @@ class ApkRenamerApp(ctk.CTk):
             width=65,
             height=24,
             corner_radius=8,
-            font=ctk.CTkFont(size=11),
+            font=get_font(11, "bold"),
             fg_color=("#e2e8f0", "#1e263d"),
             hover_color=("#cbd5e1", "#2b3656"),
             text_color=("#0f172a", "#f1f5f9"),
@@ -745,7 +798,7 @@ class ApkRenamerApp(ctk.CTk):
             width=60,
             height=24,
             corner_radius=8,
-            font=ctk.CTkFont(size=11),
+            font=get_font(11, "bold"),
             fg_color=("#e2e8f0", "#1e263d"),
             hover_color=("#cbd5e1", "#2b3656"),
             text_color=("#0f172a", "#f1f5f9"),

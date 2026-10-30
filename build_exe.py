@@ -25,6 +25,8 @@ def build():
     core_src = os.path.join(BASE_DIR, "core")
     
     # 1. Run PyInstaller
+    assets_src = os.path.join(BASE_DIR, "assets")
+    sep = ";" if sys.platform == "win32" else ":"
     cmd = [
         sys.executable,
         "-m",
@@ -33,6 +35,7 @@ def build():
         "--noconsole",
         "--clean",
         "--noconfirm",
+        f"--add-data={assets_src}{sep}assets",
         "--collect-all=customtkinter",
         "--collect-all=PIL",
         "--collect-all=arabic_reshaper",
@@ -67,7 +70,15 @@ def build():
     for empty_folder in ["in", "out", "icon"]:
         os.makedirs(os.path.join(core_dest, empty_folder), exist_ok=True)
 
-    # 3. Create a quick launcher batch file inside dist
+    # 3. Copy bundled assets (Fonts: Tajawal, etc.)
+    print("[*] Bundling UI assets and Tajawal fonts...")
+    assets_dest = os.path.join(output_app_dir, "assets")
+    if os.path.exists(assets_dest):
+        shutil.rmtree(assets_dest)
+    if os.path.exists(assets_src):
+        shutil.copytree(assets_src, assets_dest)
+
+    # 4. Create a quick launcher batch file inside dist
     quick_run_bat = os.path.join(output_app_dir, "Start_ApkRenamer.bat")
     with open(quick_run_bat, "w", encoding="utf-8") as f:
         f.write('@echo off\ncd /d "%~dp0"\nstart ApkRenamerGUI.exe\n')
