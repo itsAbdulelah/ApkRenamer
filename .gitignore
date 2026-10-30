@@ -18,7 +18,7 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# virtual machine crash logs
 hs_err_pid*
 .idea/
 .idea
@@ -26,3 +26,21 @@ folders/in
 folders/out
 folders/temp
 folders/cache
+
+# Python / GUI artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+dist/
+build/
+*.spec
+
+# Core runtime temp directories
+core/temp/
+core/cache/
+core/in/*
+core/out/*
+core/icon/*
+!core/in/.gitkeep
+!core/out/.gitkeep
+!core/icon/.gitkeep
