@@ -8,9 +8,6 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 from PIL import Image, ImageTk
 
-import arabic_reshaper
-from bidi.algorithm import get_display
-
 try:
     from .runner import ApkRenamerRunner, check_java, get_core_dir
 except ImportError:
@@ -55,61 +52,40 @@ def get_font(size: int = 12, weight: str = "normal") -> ctk.CTkFont:
     return ctk.CTkFont(family=APP_FONT, size=size, weight=weight)
 
 
-def bidi_text(text: str) -> str:
-    """Reshape and reorder Arabic text for LTR GUI engines (Tkinter/CustomTkinter).
-    Ensures that sentences like 'ملف التطبيق الأساسي:' render in natural right-to-left
-    word order rather than reversed 'الأساسي التطبيق ملف'.
-    """
-    if not text:
-        return text
-    if any("\u0600" <= c <= "\u06FF" for c in text):
-        try:
-            configuration = {
-                "delete_harakat": False,
-                "support_ligatures": True,
-            }
-            reshaper = arabic_reshaper.ArabicReshaper(configuration=configuration)
-            reshaped = reshaper.reshape(text)
-            return get_display(reshaped)
-        except Exception:
-            return text
-    return text
-
-
 TRANSLATIONS = {
     "ar": {
         "app_title": "استوديو تعديل وتكرار التطبيقات",
         "app_subtitle": "تعديل، استنساخ، وتوقيع تطبيقات أندرويد بسهولة وبأعلى كفاءة",
         "config_card": "إعدادات وبيانات التطبيق",
-        "src_apk": "ملف التطبيق الأساسي (APK):",
+        "src_apk": "ملف تطبيق أندرويد الأساسي (APK)",
         "src_apk_ph": "اختر ملف التطبيق المراد تعديله (.apk)...",
-        "out_apk": "مسار حفظ التطبيق الجديد (APK):",
+        "out_apk": "مسار حفظ التطبيق الجديد (APK)",
         "out_apk_ph": "مسار وتسمية الملف المعدل الجديد...",
-        "app_name": "اسم التطبيق الجديد:",
+        "app_name": "اسم التطبيق الجديد",
         "app_name_ph": "مثال: تطبيقي المعدل (أو اتركه فارغاً لعدم التغيير)",
-        "pkg_id": "معرّف الحزمة الجديد (Package ID):",
+        "pkg_id": "معرّف الحزمة الجديد (Package ID)",
         "pkg_id_ph": "مثال: com.company.app (مهم لتثبيت نسخة ثانية)",
         "random_btn": "🎲 عشوائي",
         "keep_icon": "استخدام الشعار الأصلي دون تغيير",
-        "custom_icon": "شعار التطبيق المخصص (PNG):",
+        "custom_icon": "شعار التطبيق المخصص (PNG)",
         "custom_icon_ph": "اختر صورة الأيقونة الجديدة بدقة مناسبة (.png)...",
         "browse": "استعراض...",
         "orig_badge": "[الأصلي]",
-        "deep_rename": "تفعيل الاستنساخ الشامل وتغيير الحزمة (Deep Renaming):",
+        "deep_rename": "تفعيل الاستنساخ الشامل وتغيير الحزمة (Deep Rename)",
         "deep_rename_desc": "يستبدل معرّف الحزمة في كافة ملفات وشيفرات التطبيق لتثبيته كنسخة مكررة بجانب التطبيق الأصلي.",
         "adv_btn_closed": "▶ خيارات وإعدادات متقدمة (القاموس، وأوامر المعالجة)",
         "adv_btn_opened": "▼ إخفاء الإعدادات المتقدمة",
-        "dict_lbl": "ملف قاموس استبدال النصوص (-r):",
+        "dict_lbl": "ملف قاموس استبدال النصوص (-r)",
         "dict_ph": "اختياري: ملف dictionary.txt لاستبدال الكلمات",
-        "decode_lbl": "أوامر فك الحزم الإضافية (-da):",
+        "decode_lbl": "أوامر فك الحزم الإضافية (-da)",
         "decode_ph": "مثال: --keep-broken-res",
-        "build_lbl": "أوامر إعادة البناء الإضافية (-ba):",
+        "build_lbl": "أوامر إعادة البناء الإضافية (-ba)",
         "build_ph": "مثال: --use-aapt2",
         "start_btn": "🚀 بدء المعالجة والتعديل",
         "processing_btn": "⏳ جاري المعالجة...",
         "cancel_btn": "🛑 إلغاء",
         "open_folder": "📂 فتح مجلد الإخراج",
-        "terminal_title": "سجل العمليات والمخرجات المباشر:",
+        "terminal_title": "سجل العمليات والمخرجات المباشر",
         "copy_log": "نسخ",
         "clear_log": "مسح",
         "ready": "جاهز للبدء",
@@ -231,14 +207,11 @@ class ApkRenamerApp(ctk.CTk):
         self._check_environment()
 
     def t(self, key: str) -> str:
-        """Fetch translated text with full Arabic BiDi reshaping."""
-        text = TRANSLATIONS.get(self.current_lang, TRANSLATIONS["ar"]).get(key, key)
-        if self.is_rtl():
-            return bidi_text(text)
-        return text
+        """Fetch translated text for current language."""
+        return TRANSLATIONS.get(self.current_lang, TRANSLATIONS["ar"]).get(key, key)
 
     def raw_t(self, key: str) -> str:
-        """Fetch un-reshaped text for native Win32 dialogs (messagebox)."""
+        """Fetch translated text for native Win32 dialogs (messagebox)."""
         return TRANSLATIONS.get(self.current_lang, TRANSLATIONS["ar"]).get(key, key)
 
     def is_rtl(self) -> bool:
