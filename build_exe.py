@@ -35,6 +35,8 @@ def build():
         "--noconfirm",
         "--collect-all=customtkinter",
         "--collect-all=PIL",
+        "--collect-all=arabic_reshaper",
+        "--collect-all=bidi",
         os.path.join(BASE_DIR, "main.py")
     ]
     

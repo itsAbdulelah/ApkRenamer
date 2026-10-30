@@ -7,10 +7,34 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 from PIL import Image, ImageTk
 
+import arabic_reshaper
+from bidi.algorithm import get_display
+
 try:
     from .runner import ApkRenamerRunner, check_java, get_core_dir
 except ImportError:
     from runner import ApkRenamerRunner, check_java, get_core_dir
+
+
+def bidi_text(text: str) -> str:
+    """Reshape and reorder Arabic text for LTR GUI engines (Tkinter/CustomTkinter).
+    Ensures that sentences like 'ملف التطبيق الأساسي:' render in natural right-to-left
+    word order rather than reversed 'الأساسي التطبيق ملف'.
+    """
+    if not text:
+        return text
+    if any("\u0600" <= c <= "\u06FF" for c in text):
+        try:
+            configuration = {
+                "delete_harakat": False,
+                "support_ligatures": True,
+            }
+            reshaper = arabic_reshaper.ArabicReshaper(configuration=configuration)
+            reshaped = reshaper.reshape(text)
+            return get_display(reshaped)
+        except Exception:
+            return text
+    return text
 
 
 TRANSLATIONS = {
@@ -18,29 +42,29 @@ TRANSLATIONS = {
         "app_title": "استوديو تعديل وتكرار التطبيقات",
         "app_subtitle": "تعديل، استنساخ، وتوقيع تطبيقات أندرويد بسهولة وبأعلى كفاءة",
         "config_card": "إعدادات وبيانات التطبيق",
-        "src_apk": "ملف التطبيق الأساسي:",
+        "src_apk": "ملف التطبيق الأساسي (APK):",
         "src_apk_ph": "اختر ملف التطبيق المراد تعديله (.apk)...",
-        "out_apk": "مسار حفظ التطبيق الجديد:",
+        "out_apk": "مسار حفظ التطبيق الجديد (APK):",
         "out_apk_ph": "مسار وتسمية الملف المعدل الجديد...",
         "app_name": "اسم التطبيق الجديد:",
         "app_name_ph": "مثال: تطبيقي المعدل (أو اتركه فارغاً لعدم التغيير)",
-        "pkg_id": "معرّف الحزمة الجديد:",
+        "pkg_id": "معرّف الحزمة الجديد (Package ID):",
         "pkg_id_ph": "مثال: com.company.app (مهم لتثبيت نسخة ثانية)",
         "random_btn": "🎲 عشوائي",
         "keep_icon": "استخدام الشعار الأصلي دون تغيير",
-        "custom_icon": "شعار التطبيق المخصص:",
+        "custom_icon": "شعار التطبيق المخصص (PNG):",
         "custom_icon_ph": "اختر صورة الأيقونة الجديدة بدقة مناسبة (.png)...",
         "browse": "استعراض...",
         "orig_badge": "[الأصلي]",
-        "deep_rename": "تفعيل الاستنساخ الشامل وتغيير الحزمة:",
-        "deep_rename_desc": "يستبدل معرّف الحزمة في كافة ملفات وشيفرات التطبيق الداخلية لتثبيته كنسخة مكررة بجانب التطبيق الأصلي.",
+        "deep_rename": "تفعيل الاستنساخ الشامل وتغيير الحزمة (Deep Renaming):",
+        "deep_rename_desc": "يستبدل معرّف الحزمة في كافة ملفات وشيفرات التطبيق لتثبيته كنسخة مكررة بجانب التطبيق الأصلي.",
         "adv_btn_closed": "▶ خيارات وإعدادات متقدمة (القاموس، وأوامر المعالجة)",
         "adv_btn_opened": "▼ إخفاء الإعدادات المتقدمة",
-        "dict_lbl": "ملف قاموس استبدال النصوص:",
+        "dict_lbl": "ملف قاموس استبدال النصوص (-r):",
         "dict_ph": "اختياري: ملف dictionary.txt لاستبدال الكلمات",
-        "decode_lbl": "خيارات فك الحزم الإضافية:",
+        "decode_lbl": "أوامر فك الحزم الإضافية (-da):",
         "decode_ph": "مثال: --keep-broken-res",
-        "build_lbl": "خيارات إعادة البناء الإضافية:",
+        "build_lbl": "أوامر إعادة البناء الإضافية (-ba):",
         "build_ph": "مثال: --use-aapt2",
         "start_btn": "🚀 بدء المعالجة والتعديل",
         "processing_btn": "⏳ جاري المعالجة...",
@@ -168,7 +192,14 @@ class ApkRenamerApp(ctk.CTk):
         self._check_environment()
 
     def t(self, key: str) -> str:
-        """Fetch translated text for current language."""
+        """Fetch translated text with full Arabic BiDi reshaping."""
+        text = TRANSLATIONS.get(self.current_lang, TRANSLATIONS["ar"]).get(key, key)
+        if self.is_rtl():
+            return bidi_text(text)
+        return text
+
+    def raw_t(self, key: str) -> str:
+        """Fetch un-reshaped text for native Win32 dialogs (messagebox)."""
         return TRANSLATIONS.get(self.current_lang, TRANSLATIONS["ar"]).get(key, key)
 
     def is_rtl(self) -> bool:
@@ -830,7 +861,7 @@ class ApkRenamerApp(ctk.CTk):
     # --- File Browsers ---
     def _browse_apk_in(self):
         file = filedialog.askopenfilename(
-            title=self.t("src_apk"),
+            title=self.raw_t("src_apk"),
             filetypes=[("Android Package (*.apk)", "*.apk"), ("All Files", "*.*")]
         )
         if file:
@@ -845,7 +876,7 @@ class ApkRenamerApp(ctk.CTk):
 
     def _browse_apk_out(self):
         file = filedialog.asksaveasfilename(
-            title=self.t("out_apk"),
+            title=self.raw_t("out_apk"),
             defaultextension=".apk",
             filetypes=[("Android Package (*.apk)", "*.apk")]
         )
@@ -854,7 +885,7 @@ class ApkRenamerApp(ctk.CTk):
 
     def _browse_icon(self):
         file = filedialog.askopenfilename(
-            title=self.t("custom_icon"),
+            title=self.raw_t("custom_icon"),
             filetypes=[("PNG Images (*.png)", "*.png"), ("All Images", "*.png;*.jpg;*.jpeg")]
         )
         if file:
@@ -873,7 +904,7 @@ class ApkRenamerApp(ctk.CTk):
 
     def _browse_dict(self):
         file = filedialog.askopenfilename(
-            title=self.t("dict_lbl"),
+            title=self.raw_t("dict_lbl"),
             filetypes=[("Text Files (*.txt)", "*.txt"), ("All Files", "*.*")]
         )
         if file:
@@ -888,18 +919,18 @@ class ApkRenamerApp(ctk.CTk):
         icon = self.icon_path_var.get().strip()
 
         if not apk_in or not os.path.exists(apk_in):
-            messagebox.showerror(self.t("err_title"), self.t("err_no_apk"))
+            messagebox.showerror(self.raw_t("err_title"), self.raw_t("err_no_apk"))
             return
 
         if not apk_out:
-            messagebox.showerror(self.t("err_title"), self.t("err_no_out"))
+            messagebox.showerror(self.raw_t("err_title"), self.raw_t("err_no_out"))
             return
 
         keep_orig_icon = self.keep_original_icon_var.get()
         effective_icon = "" if keep_orig_icon else icon
 
         if not app_name and not package_name and (keep_orig_icon or not effective_icon):
-            confirm = messagebox.askyesno(self.t("confirm_title"), self.t("confirm_msg"))
+            confirm = messagebox.askyesno(self.raw_t("confirm_title"), self.raw_t("confirm_msg"))
             if not confirm:
                 return
 
@@ -933,13 +964,13 @@ class ApkRenamerApp(ctk.CTk):
         if os.path.exists(target):
             os.startfile(target)
         else:
-            messagebox.showinfo(self.t("open_folder"), f"Path not found: {target}")
+            messagebox.showinfo(self.raw_t("open_folder"), f"Path not found: {target}")
 
     def _copy_log(self):
         content = self.console_box.get("1.0", "end-1c")
         self.clipboard_clear()
         self.clipboard_append(content)
-        messagebox.showinfo(self.t("copy_log"), self.t("copied"))
+        messagebox.showinfo(self.raw_t("copy_log"), self.raw_t("copied"))
 
     def _clear_log(self):
         self.console_box.delete("1.0", "end")
@@ -972,9 +1003,9 @@ class ApkRenamerApp(ctk.CTk):
 
             if success:
                 self.open_out_btn.configure(state="normal")
-                messagebox.showinfo(self.t("success_title"), f"{self.t('success_msg')}{self.apk_out_var.get()}")
+                messagebox.showinfo(self.raw_t("success_title"), f"{self.raw_t('success_msg')}{self.apk_out_var.get()}")
             else:
-                messagebox.showwarning(self.t("err_title"), f"Notice: {message}")
+                messagebox.showwarning(self.raw_t("err_title"), f"Notice: {message}")
 
         self.after(0, _update)
 
