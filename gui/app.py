@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import random
 import string
 import tkinter as tk
@@ -13,30 +14,54 @@ except ImportError:
     from runner import ApkRenamerRunner, check_java, get_core_dir
 
 
+def bidi_ar(text: str) -> str:
+    """Format Arabic text containing Latin words or punctuation to preserve strict RTL layout without flipping."""
+    if not text:
+        return text
+
+    RLM = "\u200F"  # Right-To-Left Mark
+    LRE = "\u202A"  # Left-to-Right Embedding
+    PDF = "\u202C"  # Pop Directional Formatting
+
+    # Isolate parenthesized expressions like (APK), (Package ID), (-da), (PNG), (-r), (-ba)
+    def fix_parens(m):
+        content = m.group(1)
+        return f"{RLM}{LRE}({content}){PDF}{RLM}"
+
+    result = re.sub(r'\(([a-zA-Z0-9_\-\s]+)\)', fix_parens, text)
+
+    # Ensure the whole string starts and ends with RLM so trailing colons/symbols never flip
+    if not result.startswith(RLM):
+        result = RLM + result
+    if not result.endswith(RLM):
+        result = result + RLM
+    return result
+
+
 TRANSLATIONS = {
     "ar": {
-        "app_title": "📱 ApkRenamer Studio",
-        "app_subtitle": "تعديل، استنساخ، وتوقيع تطبيقات أندرويد بسهولة",
-        "config_card": "⚙️ إعدادات وبيانات التطبيق",
-        "src_apk": "ملف الـ APK الأصلي:",
+        "app_title": "استوديو تعديل تطبيقات أندرويد (ApkRenamer)",
+        "app_subtitle": "تعديل، استنساخ، وتوقيع تطبيقات أندرويد بسهولة وبأعلى أداء",
+        "config_card": "إعدادات وبيانات التطبيق",
+        "src_apk": "ملف التطبيق الأصلي (APK):",
         "src_apk_ph": "اختر ملف التطبيق المراد تعديله (.apk)...",
-        "out_apk": "مسار حفظ الـ APK الجديد:",
+        "out_apk": "مسار حفظ التطبيق الجديد (APK):",
         "out_apk_ph": "مسار وتسمية الملف المعدل الجديد...",
         "app_name": "اسم التطبيق الجديد:",
         "app_name_ph": "مثال: تطبيقي المعدل (أو اتركه فارغاً لعدم التغيير)",
-        "pkg_id": "معرّف الحزمة (Package ID):",
+        "pkg_id": "معرّف الحزمة الجديد (Package ID):",
         "pkg_id_ph": "مثال: com.company.app (مهم لتثبيت نسخة ثانية)",
         "random_btn": "🎲 عشوائي",
         "keep_icon": "استخدام الشعار الأصلي (تجنب التغيير)",
-        "custom_icon": "شعار مخصص (PNG):",
+        "custom_icon": "شعار التطبيق المخصص (PNG):",
         "custom_icon_ph": "اختر صورة الأيقونة الجديدة بدقة مناسبة...",
         "browse": "استعراض...",
         "orig_badge": "[الأصلي]",
-        "deep_rename": "تفعيل الاستنساخ الشامل (Deep Renaming -d)",
+        "deep_rename": "تفعيل الاستنساخ الشامل (Deep Renaming):",
         "deep_rename_desc": "يستبدل اسم الحزمة في كامل الشيفرات وملفات Smali لتثبيت التطبيق بجانب الأصلي كنسخة ثانية بدون تعارض.",
         "adv_btn_closed": "▶ الإعدادات المتقدمة (القاموس، أوامر Apktool)",
         "adv_btn_opened": "▼ إخفاء الإعدادات المتقدمة",
-        "dict_lbl": "ملف القاموس (-r):",
+        "dict_lbl": "ملف قاموس النصوص (-r):",
         "dict_ph": "اختياري: ملف dictionary.txt لاستبدال النصوص",
         "decode_lbl": "أوامر فك الحزم (-da):",
         "decode_ph": "مثال: --keep-broken-res",
@@ -64,9 +89,9 @@ TRANSLATIONS = {
         "lang_switch_text": "English",
     },
     "en": {
-        "app_title": "📱 ApkRenamer Studio",
+        "app_title": "ApkRenamer Studio (Android Cloner)",
         "app_subtitle": "Customize, Clone, and Re-sign Android APKs with ease",
-        "config_card": "⚙️ Configuration & Parameters",
+        "config_card": "Configuration & Parameters",
         "src_apk": "Source APK File:",
         "src_apk_ph": "Select target Android package (.apk)...",
         "out_apk": "Output APK Destination:",
@@ -81,7 +106,7 @@ TRANSLATIONS = {
         "custom_icon_ph": "Select new .png icon...",
         "browse": "Browse...",
         "orig_badge": "[Original]",
-        "deep_rename": "Enable Deep Renaming (-d) [Cloning Mode]",
+        "deep_rename": "Enable Deep Renaming (-d) [Cloning Mode]:",
         "deep_rename_desc": "Replaces package name occurrences across all smali files & manifests for dual app installation.",
         "adv_btn_closed": "▶ Advanced Settings (Dictionary, Apktool flags)",
         "adv_btn_opened": "▼ Hide Advanced Settings",
@@ -168,8 +193,11 @@ class ApkRenamerApp(ctk.CTk):
         self._check_environment()
 
     def t(self, key: str) -> str:
-        """Fetch translated text for current language."""
-        return TRANSLATIONS.get(self.current_lang, TRANSLATIONS["ar"]).get(key, key)
+        """Fetch translated text for current language with automatic RTL BiDi isolation."""
+        text = TRANSLATIONS.get(self.current_lang, TRANSLATIONS["ar"]).get(key, key)
+        if self.is_rtl():
+            return bidi_ar(text)
+        return text
 
     def is_rtl(self) -> bool:
         return self.current_lang == "ar"
@@ -194,6 +222,8 @@ class ApkRenamerApp(ctk.CTk):
             widget.destroy()
 
         rtl = self.is_rtl()
+        label_anchor = "e" if rtl else "w"
+        label_justify = "right" if rtl else "left"
 
         # Grid Configuration
         self.grid_rowconfigure(1, weight=1)
@@ -217,13 +247,16 @@ class ApkRenamerApp(ctk.CTk):
             title_frame,
             text=self.t("app_title"),
             font=ctk.CTkFont(size=20, weight="bold"),
-            text_color=("#0f172a", "#f8fafc")
+            text_color=("#0f172a", "#f8fafc"),
+            anchor=label_anchor
         )
         sub_lbl = ctk.CTkLabel(
             title_frame,
             text=self.t("app_subtitle"),
             font=ctk.CTkFont(size=11),
-            text_color=("#64748b", "#94a3b8")
+            text_color=("#64748b", "#94a3b8"),
+            anchor=label_anchor,
+            justify=label_justify
         )
 
         # Action badges block (Language, Theme, Java status)
@@ -267,13 +300,11 @@ class ApkRenamerApp(ctk.CTk):
         lang_btn.pack(side="left" if not rtl else "right", padx=6)
 
         if rtl:
-            # RTL layout in header
             title_frame.grid(row=0, column=2, padx=20, pady=10, sticky="e")
             title_lbl.pack(anchor="e")
             sub_lbl.pack(anchor="e")
             controls_frame.grid(row=0, column=0, padx=20, pady=10, sticky="w")
         else:
-            # LTR layout in header
             title_frame.grid(row=0, column=0, padx=20, pady=10, sticky="w")
             title_lbl.pack(anchor="w")
             sub_lbl.pack(anchor="w")
@@ -302,7 +333,8 @@ class ApkRenamerApp(ctk.CTk):
             upper_card,
             text=self.t("config_card"),
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=("#334155", "#94a3b8")
+            text_color=("#334155", "#94a3b8"),
+            anchor=label_anchor
         )
         card_title.grid(row=0, column=0, sticky="e" if rtl else "w", padx=20, pady=(12, 4))
 
@@ -310,7 +342,6 @@ class ApkRenamerApp(ctk.CTk):
         top_scroll.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 10))
         top_scroll.grid_columnconfigure(1, weight=1)
 
-        # Row Mapping for RTL vs LTR
         col_label = 2 if rtl else 0
         col_input = 1
         col_action = 0 if rtl else 2
@@ -320,9 +351,9 @@ class ApkRenamerApp(ctk.CTk):
         r = 0
 
         # --- Field 1: Source APK ---
-        lbl_src = ctk.CTkLabel(top_scroll, text=self.t("src_apk"), font=ctk.CTkFont(weight="bold"))
+        lbl_src = ctk.CTkLabel(top_scroll, text=self.t("src_apk"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
         lbl_src.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
-        
+
         self.apk_entry = ctk.CTkEntry(
             top_scroll,
             textvariable=self.apk_in_var,
@@ -351,7 +382,7 @@ class ApkRenamerApp(ctk.CTk):
         r += 1
 
         # --- Field 2: Output APK ---
-        lbl_out = ctk.CTkLabel(top_scroll, text=self.t("out_apk"), font=ctk.CTkFont(weight="bold"))
+        lbl_out = ctk.CTkLabel(top_scroll, text=self.t("out_apk"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
         lbl_out.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
 
         self.out_entry = ctk.CTkEntry(
@@ -382,7 +413,7 @@ class ApkRenamerApp(ctk.CTk):
         r += 1
 
         # --- Field 3: New App Name ---
-        lbl_name = ctk.CTkLabel(top_scroll, text=self.t("app_name"), font=ctk.CTkFont(weight="bold"))
+        lbl_name = ctk.CTkLabel(top_scroll, text=self.t("app_name"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
         lbl_name.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
 
         self.name_entry = ctk.CTkEntry(
@@ -394,7 +425,6 @@ class ApkRenamerApp(ctk.CTk):
             border_width=1,
             corner_radius=10
         )
-        # Span both input and action columns for full width
         if rtl:
             self.name_entry.grid(row=r, column=0, columnspan=2, padx=8, pady=6, sticky="ew")
         else:
@@ -402,7 +432,7 @@ class ApkRenamerApp(ctk.CTk):
         r += 1
 
         # --- Field 4: New Package ID & Random Button ---
-        lbl_pkg = ctk.CTkLabel(top_scroll, text=self.t("pkg_id"), font=ctk.CTkFont(weight="bold"))
+        lbl_pkg = ctk.CTkLabel(top_scroll, text=self.t("pkg_id"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
         lbl_pkg.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
 
         self.pack_entry = ctk.CTkEntry(
@@ -447,7 +477,7 @@ class ApkRenamerApp(ctk.CTk):
         r += 1
 
         # Custom Icon Row
-        lbl_cicon = ctk.CTkLabel(top_scroll, text=self.t("custom_icon"), font=ctk.CTkFont(weight="bold"))
+        lbl_cicon = ctk.CTkLabel(top_scroll, text=self.t("custom_icon"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
         lbl_cicon.grid(row=r, column=col_label, padx=12, pady=6, sticky=label_sticky)
 
         self.icon_entry = ctk.CTkEntry(
@@ -512,7 +542,8 @@ class ApkRenamerApp(ctk.CTk):
             font=ctk.CTkFont(size=11),
             text_color=("#64748b", "#94a3b8"),
             wraplength=700,
-            justify="right" if rtl else "left"
+            justify=label_justify,
+            anchor=label_anchor
         )
         lbl_deep_desc.pack(anchor="e" if rtl else "w", padx=16, pady=(0, 10))
         r += 1
@@ -524,7 +555,7 @@ class ApkRenamerApp(ctk.CTk):
             fg_color="transparent",
             text_color=("#0284c7", "#38bdf8"),
             hover=False,
-            anchor="e" if rtl else "w",
+            anchor=label_anchor,
             font=ctk.CTkFont(size=12, weight="bold"),
             command=self._toggle_advanced
         )
@@ -541,7 +572,7 @@ class ApkRenamerApp(ctk.CTk):
         self.adv_frame.grid_columnconfigure(1, weight=1)
 
         # Dictionary
-        lbl_dict = ctk.CTkLabel(self.adv_frame, text=self.t("dict_lbl"), font=ctk.CTkFont(weight="bold"))
+        lbl_dict = ctk.CTkLabel(self.adv_frame, text=self.t("dict_lbl"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
         lbl_dict.grid(row=0, column=col_label, padx=12, pady=6, sticky=label_sticky)
         ctk.CTkEntry(
             self.adv_frame,
@@ -567,7 +598,7 @@ class ApkRenamerApp(ctk.CTk):
         ).grid(row=0, column=col_action, padx=8, pady=6, sticky=btn_sticky)
 
         # Decode flags
-        lbl_dec = ctk.CTkLabel(self.adv_frame, text=self.t("decode_lbl"), font=ctk.CTkFont(weight="bold"))
+        lbl_dec = ctk.CTkLabel(self.adv_frame, text=self.t("decode_lbl"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
         lbl_dec.grid(row=1, column=col_label, padx=12, pady=6, sticky=label_sticky)
         dec_entry = ctk.CTkEntry(
             self.adv_frame,
@@ -584,7 +615,7 @@ class ApkRenamerApp(ctk.CTk):
             dec_entry.grid(row=1, column=1, columnspan=2, padx=6, pady=6, sticky="ew")
 
         # Build flags
-        lbl_bld = ctk.CTkLabel(self.adv_frame, text=self.t("build_lbl"), font=ctk.CTkFont(weight="bold"))
+        lbl_bld = ctk.CTkLabel(self.adv_frame, text=self.t("build_lbl"), font=ctk.CTkFont(weight="bold"), anchor=label_anchor)
         lbl_bld.grid(row=2, column=col_label, padx=12, pady=6, sticky=label_sticky)
         bld_entry = ctk.CTkEntry(
             self.adv_frame,
@@ -661,17 +692,16 @@ class ApkRenamerApp(ctk.CTk):
             action_bar,
             text=self.t("ready"),
             font=ctk.CTkFont(weight="bold", size=13),
-            text_color="#38bdf8"
+            text_color="#38bdf8",
+            anchor=label_anchor
         )
 
         if rtl:
-            # RTL: Buttons on right, status on left
             self.start_btn.pack(side="right", padx=(8, 0))
             self.cancel_btn.pack(side="right", padx=(8, 0))
             self.open_out_btn.pack(side="right", padx=(8, 0))
             self.status_lbl.pack(side="left", padx=(0, 10))
         else:
-            # LTR: Buttons on left, status on right
             self.start_btn.pack(side="left", padx=(0, 8))
             self.cancel_btn.pack(side="left", padx=(0, 8))
             self.open_out_btn.pack(side="left", padx=(0, 8))
@@ -690,7 +720,8 @@ class ApkRenamerApp(ctk.CTk):
             term_bar,
             text=self.t("terminal_title"),
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#475569", "#94a3b8")
+            text_color=("#475569", "#94a3b8"),
+            anchor=label_anchor
         )
 
         btn_copy = ctk.CTkButton(
