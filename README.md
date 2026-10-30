@@ -2,7 +2,20 @@
 
 A modern Android APK customizer, cloner, and renamer. Supports changing app names, package IDs, and app icons with deep renaming for dual/side-by-side installations.
 
-Includes both the original command-line core and the new **Crystal Glass Bilingual GUI**.
+Includes both the original command-line core and the new **Crystal Glass Bilingual GUI** with Google Font **Tajawal**.
+
+---
+
+## 📸 Screenshots (معاينة الواجهة)
+
+### Arabic Interface - Dark Theme (الواجهة العربية - النمط الداكن)
+![Arabic Dark Interface](assets/screenshots/preview_ar_dark.png)
+
+### Light Theme (النمط الفاتح البلوري)
+![Arabic Light Interface](assets/screenshots/preview_ar_light.png)
+
+### English Interface - LTR (الواجهة الإنجليزية)
+![English Interface](assets/screenshots/preview_en_dark.png)
 
 ---
 
