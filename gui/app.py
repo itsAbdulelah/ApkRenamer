@@ -1,6 +1,5 @@
 import os
 import sys
-import re
 import random
 import string
 import tkinter as tk
@@ -14,77 +13,53 @@ except ImportError:
     from runner import ApkRenamerRunner, check_java, get_core_dir
 
 
-def bidi_ar(text: str) -> str:
-    """Format Arabic text containing Latin words or punctuation to preserve strict RTL layout without flipping."""
-    if not text:
-        return text
-
-    RLM = "\u200F"  # Right-To-Left Mark
-    LRE = "\u202A"  # Left-to-Right Embedding
-    PDF = "\u202C"  # Pop Directional Formatting
-
-    # Isolate parenthesized expressions like (APK), (Package ID), (-da), (PNG), (-r), (-ba)
-    def fix_parens(m):
-        content = m.group(1)
-        return f"{RLM}{LRE}({content}){PDF}{RLM}"
-
-    result = re.sub(r'\(([a-zA-Z0-9_\-\s]+)\)', fix_parens, text)
-
-    # Ensure the whole string starts and ends with RLM so trailing colons/symbols never flip
-    if not result.startswith(RLM):
-        result = RLM + result
-    if not result.endswith(RLM):
-        result = result + RLM
-    return result
-
-
 TRANSLATIONS = {
     "ar": {
-        "app_title": "استوديو تعديل تطبيقات أندرويد (ApkRenamer)",
-        "app_subtitle": "تعديل، استنساخ، وتوقيع تطبيقات أندرويد بسهولة وبأعلى أداء",
+        "app_title": "استوديو تعديل وتكرار التطبيقات",
+        "app_subtitle": "تعديل، استنساخ، وتوقيع تطبيقات أندرويد بسهولة وبأعلى كفاءة",
         "config_card": "إعدادات وبيانات التطبيق",
-        "src_apk": "ملف التطبيق الأصلي (APK):",
+        "src_apk": "ملف التطبيق الأساسي:",
         "src_apk_ph": "اختر ملف التطبيق المراد تعديله (.apk)...",
-        "out_apk": "مسار حفظ التطبيق الجديد (APK):",
+        "out_apk": "مسار حفظ التطبيق الجديد:",
         "out_apk_ph": "مسار وتسمية الملف المعدل الجديد...",
         "app_name": "اسم التطبيق الجديد:",
         "app_name_ph": "مثال: تطبيقي المعدل (أو اتركه فارغاً لعدم التغيير)",
-        "pkg_id": "معرّف الحزمة الجديد (Package ID):",
+        "pkg_id": "معرّف الحزمة الجديد:",
         "pkg_id_ph": "مثال: com.company.app (مهم لتثبيت نسخة ثانية)",
         "random_btn": "🎲 عشوائي",
-        "keep_icon": "استخدام الشعار الأصلي (تجنب التغيير)",
-        "custom_icon": "شعار التطبيق المخصص (PNG):",
-        "custom_icon_ph": "اختر صورة الأيقونة الجديدة بدقة مناسبة...",
+        "keep_icon": "استخدام الشعار الأصلي دون تغيير",
+        "custom_icon": "شعار التطبيق المخصص:",
+        "custom_icon_ph": "اختر صورة الأيقونة الجديدة بدقة مناسبة (.png)...",
         "browse": "استعراض...",
         "orig_badge": "[الأصلي]",
-        "deep_rename": "تفعيل الاستنساخ الشامل (Deep Renaming):",
-        "deep_rename_desc": "يستبدل اسم الحزمة في كامل الشيفرات وملفات Smali لتثبيت التطبيق بجانب الأصلي كنسخة ثانية بدون تعارض.",
-        "adv_btn_closed": "▶ الإعدادات المتقدمة (القاموس، أوامر Apktool)",
+        "deep_rename": "تفعيل الاستنساخ الشامل وتغيير الحزمة:",
+        "deep_rename_desc": "يستبدل معرّف الحزمة في كافة ملفات وشيفرات التطبيق الداخلية لتثبيته كنسخة مكررة بجانب التطبيق الأصلي.",
+        "adv_btn_closed": "▶ خيارات وإعدادات متقدمة (القاموس، وأوامر المعالجة)",
         "adv_btn_opened": "▼ إخفاء الإعدادات المتقدمة",
-        "dict_lbl": "ملف قاموس النصوص (-r):",
-        "dict_ph": "اختياري: ملف dictionary.txt لاستبدال النصوص",
-        "decode_lbl": "أوامر فك الحزم (-da):",
+        "dict_lbl": "ملف قاموس استبدال النصوص:",
+        "dict_ph": "اختياري: ملف dictionary.txt لاستبدال الكلمات",
+        "decode_lbl": "خيارات فك الحزم الإضافية:",
         "decode_ph": "مثال: --keep-broken-res",
-        "build_lbl": "أوامر إعادة البناء (-ba):",
+        "build_lbl": "خيارات إعادة البناء الإضافية:",
         "build_ph": "مثال: --use-aapt2",
         "start_btn": "🚀 بدء المعالجة والتعديل",
         "processing_btn": "⏳ جاري المعالجة...",
         "cancel_btn": "🛑 إلغاء",
         "open_folder": "📂 فتح مجلد الإخراج",
-        "terminal_title": "سجل العمليات المباشر (Terminal):",
+        "terminal_title": "سجل العمليات والمخرجات المباشر:",
         "copy_log": "نسخ",
         "clear_log": "مسح",
         "ready": "جاهز للبدء",
         "java_ok": "جافا: متوفر ومفعّل ✅",
-        "java_fail": "جافا: غير موجود! ❌",
+        "java_fail": "جافا: غير مثبت بالنظام ❌",
         "copied": "تم نسخ السجل إلى الحافظة بنجاح!",
         "success_title": "اكتمل بنجاح",
         "success_msg": "تم تعديل وبناء وتوقيع التطبيق بنجاح!\nالمسار:\n",
         "err_title": "خطأ",
-        "err_no_apk": "يرجى اختيار ملف APK صالح وموجود.",
-        "err_no_out": "يرجى تحديد مسار لحفظ ملف الـ APK الناتج.",
+        "err_no_apk": "يرجى اختيار ملف تطبيق صالح وموجود.",
+        "err_no_out": "يرجى تحديد مسار لحفظ التطبيق الناتج.",
         "confirm_title": "تنبيه",
-        "confirm_msg": "لم تحدد اسماً جديداً أو معرّف حزمة أو أيقونة جديدة.\nهل ترغب بالاستمرار في استنساخ التطبيق بنفس الخصائص؟",
+        "confirm_msg": "لم تحدد اسماً جديداً أو معرّف حزمة أو شعاراً جديداً.\nهل ترغب بالاستمرار في استنساخ التطبيق بنفس الخصائص؟",
         "theme": "المظهر",
         "lang_switch_text": "English",
     },
@@ -193,11 +168,8 @@ class ApkRenamerApp(ctk.CTk):
         self._check_environment()
 
     def t(self, key: str) -> str:
-        """Fetch translated text for current language with automatic RTL BiDi isolation."""
-        text = TRANSLATIONS.get(self.current_lang, TRANSLATIONS["ar"]).get(key, key)
-        if self.is_rtl():
-            return bidi_ar(text)
-        return text
+        """Fetch translated text for current language."""
+        return TRANSLATIONS.get(self.current_lang, TRANSLATIONS["ar"]).get(key, key)
 
     def is_rtl(self) -> bool:
         return self.current_lang == "ar"
